@@ -98,4 +98,81 @@ exports.verifysignature = async(req, res)=>{
 
     const webhook = "12345678";
     const signature = req.header["x-razorpay-signature"];
+
+   const shasum =  crypto.creatHMAC("sha123", webhook);
+   shasum.update(json.strigfy(req.body));
+   const digest = shasum.digest("hex");
+
+   if(signature === digest){
+    console.log("payment is authorised");
+
+    const{courseid, userid} = req.body.payload.payment.entity.notes;
+
+    try{
+        //fullfll the action
+
+        //find course and enroll the student it
+        const enrolledcourse = await Course.findAndUpdate({_id: courseid},
+             {$push: {studentenrolled:userid}}, {new: true});
+
+             //return rwas
+             if( !enrolledstudent){
+
+                return res.status(500).json({
+
+                    success:false,
+                     
+                   message: "course not found",
+                });
+
+             }
+
+             //find the the student and add the course  to their list enrolled course me
+             const  enrolledstudent = await User.findAndUpdate({_id:userid}, 
+                                           {$push:{course:courseid}}, {new: true},
+             );
+             if( !enrolledstudent){
+
+                return res.status(500).json({
+
+                    success:false,
+                     
+                   message: "course not found",
+                });
+
+             }
+
+          //mail send krdo confirm wala
+          const emailresponse = await mailsender(
+                                       enrolledstudent.email,
+                                       "congratulation from codehelp",
+                                       "congratualtion, you are onboarded into new codehelp course"
+
+          );
+          console.log(emailresponse);
+          return res.status(200).json({
+
+            success:true,
+            message: "signature verified and course added",
+          });
+
+
+
+    }
+    catch(err){
+        return res.status(500).json({
+
+            success:false,
+            message: err.message,
+          });
+
+    }
+   }
+else{
+
+    return res.status(400).json({
+        success:false,
+        message: "invlid reques",
+    });
+}
 }
